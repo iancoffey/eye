@@ -42,13 +42,11 @@ module Eye::System
     #   :environment
     #   :stdin, :stdout, :stderr
     def daemonize(cmd, cfg = {})
-      opts = spawn_options(cfg)
-      pid  = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
-      Process.detach(pid)
-      {:pid => pid}
-      
-    rescue Errno::ENOENT, Errno::EACCES => ex
-      {:error => ex}
+      if cfg[:uid] || cfg[:gid]
+        forked(cfg){ _daemonize(cmd, cfg) }
+      else
+        _daemonize cmd, cfg
+      end
     end
 
     # Execute cmd with blocking, return status (be careful: inside actor blocks it mailbox, use with defer)
@@ -57,24 +55,19 @@ module Eye::System
     #   :environment
     #   :stdin, :stdout, :stderr
     def execute(cmd, cfg = {})
-      opts = spawn_options(cfg)
-      pid  = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
-
-      Timeout.timeout(cfg[:timeout] || 1.second) do
-        Process.waitpid(pid)
+      if cfg[:uid] || cfg[:gid]
+        forked(cfg){ _execute(cmd, cfg) }
+      else
+        _execute cmd, cfg
       end
+    end
 
-      {:pid => pid}
+    def forked_daemonize(cmd, cfg = {})
+      forked(cfg){ daemonize(cmd, cfg) }
+    end
 
-    rescue Timeout::Error => ex      
-      send_signal(pid, 9) if pid
-      {:error => ex}
-
-    rescue Errno::ENOENT, Errno::EACCES => ex
-      {:error => ex}
-
-    ensure 
-      Process.detach(pid) if pid
+    def forked_execute(cmd, cfg = {})
+      forked(cfg){ execute(cmd, cfg) }
     end
 
     # get table
@@ -118,6 +111,82 @@ module Eye::System
     end
 
   private
+
+    def _daemonize(cmd, cfg = {})
+      opts = spawn_options(cfg)
+      
+      pid = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
+      Process.detach(pid)
+
+      {:pid => pid}
+
+    rescue Errno::ENOENT, Errno::EACCES => ex
+      {:error => ex}
+    end
+
+    def _execute(cmd, cfg = {})
+      opts = spawn_options(cfg)
+      pid  = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
+
+      Timeout.timeout(cfg[:timeout] || 1.second) do
+        Process.waitpid(pid)
+      end
+
+      {:pid => pid}
+
+    rescue Timeout::Error => ex      
+      send_signal(pid, 9) if pid
+      {:error => ex}
+
+    rescue Errno::ENOENT, Errno::EACCES => ex
+      {:error => ex}
+
+    ensure
+      Process.detach(pid) if pid
+    end  
+
+    def forked(config = {}, &block)
+      fork_with_result do
+        Celluloid.logger = nil
+        at_exit {} # celluloid hack
+
+        begin
+          uid = config[:uid]
+          gid = config[:gid]
+          uid_num = Etc.getpwnam(uid).uid if uid
+          gid_num = Etc.getpwnam(gid).gid if gid
+
+          ::Process.groups = [gid_num] if gid
+          ::Process::Sys.setgid(gid_num) if gid
+          ::Process::Sys.setuid(uid_num) if uid
+
+          yield        
+
+        rescue => ex
+          {:error => ex}
+        end
+      end
+    end
+
+    def fork_with_result(&block)
+      r,w = IO.pipe
+
+      fork do        
+        r.close
+
+        begin
+          w.write(Marshal.dump(yield))
+        ensure
+          w.close
+          exit
+        end
+      end
+
+      w.close
+      Marshal.load(r.read)
+    ensure
+      r.close
+    end
 
     def spawn_options(config = {})
       o = {}
