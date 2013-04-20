@@ -1,8 +1,6 @@
 class Eye::Checker
   include Eye::Logger::Helpers
 
-  autoload :Validation, 'eye/checker/validation'
-
   autoload :Memory,     'eye/checker/memory'
   autoload :Cpu,        'eye/checker/cpu'
   autoload :Http,       'eye/checker/http'
@@ -80,7 +78,7 @@ class Eye::Checker
   end
 
   def check_name
-    self.class.to_s
+    @type.to_s
   end
 
   def max_tries
@@ -111,8 +109,14 @@ class Eye::Checker
     @values[-1][:value] if @values.present?
   end
 
-  extend Eye::Checker::Validation
+  extend Eye::Dsl::Validation
   param :every, [Fixnum, Float], false, 5
   param :times, [Fixnum, Array]
+  param :fire, Symbol, nil, nil, [:stop, :restart, :unmonitor, :nothing]
 
+  class Defer < Eye::Checker
+    def get_value
+      Celluloid::Future.new{ get_value_deferred }.value
+    end
+  end
 end

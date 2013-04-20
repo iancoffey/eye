@@ -122,6 +122,14 @@ describe "Scheduler" do
     scheduler.alive?.should == false
   end
 
+  it "schedule unexisted method should not raise and break anything" do
+    scheduler = @process.scheduler
+    @process.schedule :hahhaha
+    sleep 0.2
+    @process.alive?.should == true
+    scheduler.alive?.should == true
+  end
+
   describe "reasons" do
     it "1 param without reason" do
       @process.schedule :scheduler_test3, 1
@@ -145,6 +153,16 @@ describe "Scheduler" do
       @process.last_scheduled_command.should == :scheduler_test3
       @process.last_scheduled_reason.should == 'reason'
       @process.test3.should == [1, :bla, 3]
+    end
+  end
+
+  describe "schedule_in" do
+    it "should schedule to future" do
+      @process.schedule_in(1.second, :scheduler_test3, 1, 2, 3)
+      sleep 0.5
+      @process.test3.should == nil
+      sleep 0.6
+      @process.test3.should == [1,2,3]
     end
   end
 end

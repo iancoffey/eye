@@ -1,4 +1,3 @@
-gem 'state_machine'
 require 'state_machine'
 
 class Eye::Process
@@ -53,12 +52,12 @@ class Eye::Process
       transition any => :unmonitored
     end
 
-    after_transition :on => :crashed, :do => :on_crashed
     after_transition any => :unmonitored, :do => :on_unmonitored
     after_transition any-:up => :up, :do => :on_up
     after_transition :up => any-:up, :do => :from_up
     after_transition any => any, :do => :log_transition
-    after_transition any => any, :do => :upd_for_triggers
+    after_transition any => any, :do => :check_triggers
+    after_transition :on => :crashed, :do => :on_crashed
   end
 
   def on_crashed
@@ -66,7 +65,6 @@ class Eye::Process
   end
 
   def on_unmonitored
-    self.flapping = false
     self.pid = nil
   end
 
@@ -82,11 +80,7 @@ class Eye::Process
 
   def log_transition(transition)
     @states_history.push transition.to_name, @state_reason
-    info "switch :#{transition.event} [:#{transition.from_name} => :#{transition.to_name}] #{@state_reason ? "(#{@state_reason})" : nil}"
-  end
-
-  def upd_for_triggers(transition)
-    check_triggers
+    info "switch :#{transition.event} [:#{transition.from_name} => :#{transition.to_name}] #{@state_reason ? "(reason: #{@state_reason})" : nil}"
   end
 
 end

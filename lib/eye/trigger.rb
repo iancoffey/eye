@@ -27,7 +27,7 @@ class Eye::Trigger
     @options = options
     @logger = Eye::Logger.new(logger_prefix, "trigger")
 
-    debug "add trigger #{options}"
+    debug "add #{options}"
   end
 
   def check(states_history)
@@ -48,6 +48,6 @@ class Eye::Trigger
     raise 'realize me'
   end
 
-  extend Eye::Checker::Validation
+  extend Eye::Dsl::Validation
 
 end

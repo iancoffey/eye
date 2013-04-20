@@ -49,6 +49,11 @@ class Eye::SystemResources
     end
     
   private
+
+    def reset!
+      setup.terminate
+      @actor = nil
+    end
   
     def ps_aux
       setup
@@ -67,14 +72,17 @@ class Eye::SystemResources
     end
 
     def get
-      set! if @at + UPDATE_INTERVAL < Time.now
+      if @at + UPDATE_INTERVAL < Time.now
+        @at = Time.now # for minimize races
+        set!
+      end
       @ps_aux
     end
 
   private
 
     def set
-      @ps_aux = Eye::System.ps_aux
+      @ps_aux = defer{ Eye::System.ps_aux }
       @at = Time.now
     end
 
