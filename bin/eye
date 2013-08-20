@@ -10,7 +10,7 @@ class Eye::Cli < Thor
 
   desc "info [MASK]", "show process statuses"
   def info(mask = nil)
-    print cmd(:info, *Array(mask))
+    print cmd(:info, *Array(mask), :application => ENV['EYE_APPLICATION'])
   end
 
   desc "status ", "show process statuses"
@@ -28,7 +28,7 @@ class Eye::Cli < Thor
 
   desc "oinfo", "onelined info"
   def oinfo
-    print cmd(:oinfo)
+    print cmd(:oinfo, :application => ENV['EYE_APPLICATION'])
   end
 
   desc "load [CONF, ...]", "load config (and start server if needed) (-f for foregraund start)"
@@ -205,7 +205,7 @@ private
   end
 
   def send_command(_cmd, *args)
-    res = cmd(_cmd, *args)
+    res = cmd(_cmd, *args, :application => ENV['EYE_APPLICATION'])
     if res == :unknown_command
       error! "unknown command :#{_cmd}"
     elsif res == :corrupred_data

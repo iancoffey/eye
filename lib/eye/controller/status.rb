@@ -47,7 +47,7 @@ private
 
   def info_objects(*args)
     res = []
-    return @applications if args.empty?
+    args = ['*'] if args.extract_options.empty?
     matched_objects(*args){|obj| res << obj }
     res
   end
