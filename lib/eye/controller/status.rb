@@ -47,7 +47,8 @@ private
 
   def info_objects(*args)
     res = []
-    args = ['*'] if args.extract_options.empty?
+    h = args[-1] if args[-1].is_a?(Hash)
+    args = ['*'] if h.empty?
     matched_objects(*args){|obj| res << obj }
     res
   end
