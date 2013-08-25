@@ -1,3 +1,8 @@
+0.5.dev
+-------
+* global client app filter
+* update celluloid to 0.15
+
 0.4.1.dev
 ---------
 * checker can fires array of commands
